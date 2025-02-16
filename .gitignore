@@ -2,6 +2,7 @@ data/*
 work-dir
 search_results
 *_test.py
+test_*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

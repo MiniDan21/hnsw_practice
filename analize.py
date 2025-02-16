@@ -1,17 +1,18 @@
 import os
 
+
 def find_best_log(log_folder):
     best_time = None
     best_file = None
 
     for filename in os.listdir(log_folder):
-        if filename.endswith('.log'):
+        if filename.endswith(".log"):
             filepath = os.path.join(log_folder, filename)
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     content = f.read().strip()
                     time_value = float(content)
-                    
+
                 if best_time is None or time_value < best_time:
                     best_time = time_value
                     best_file = filename
@@ -21,6 +22,7 @@ def find_best_log(log_folder):
     if best_file is not None:
         best_file = os.path.splitext(best_file)[0]
     return best_file, best_time
+
 
 # if __name__ == '__main__':
 #     log_directory = 'path/to/log/folder'
