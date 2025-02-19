@@ -17,20 +17,20 @@ def make_index(
     data = load_dsc_file(input_file)
     base_name = os.path.splitext(os.path.basename(input_file))[0]
 
-    if brutforce:
-        print(f"Строим BF-индекс")
-        index, build_time = build_index(data, method=hnswlib.BFIndex)
-        target_bf_output = os.path.join(
-            output_dir, f"{base_name.split('-')[0]}_0_BF.idx"
-        )
-        target_log_output = os.path.join(
-            output_dir, f"{base_name.split('-')[0]}_0_BF.log"
-        )
-        save_index(index, target_bf_output)
-        with open(target_log_output, "w") as log_file:
-            log_file.write(f"{build_time:.6f}\n")
+    # if brutforce:
+    #     print(f"Строим BF-индекс")
+    #     index, build_time = build_index(data, method=hnswlib.BFIndex)
+    #     target_bf_output = os.path.join(
+    #         output_dir, f"{base_name.split('-')[0]}_0_BF.idx"
+    #     )
+    #     target_log_output = os.path.join(
+    #         output_dir, f"{base_name.split('-')[0]}_0_BF.log"
+    #     )
+    #     save_index(index, target_bf_output)
+    #     with open(target_log_output, "w") as log_file:
+    #         log_file.write(f"{build_time:.6f}\n")
 
-        print(f"Сохранён лог: {target_log_output}\n")
+    #     print(f"Сохранён лог: {target_log_output}\n")
 
     M_values = [2**i for i in range(2, 6)]
     ef_construction_values = list(range(50, 301, 50))
@@ -95,21 +95,21 @@ def main():
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--input_file", help="Путь к DSC файлу")
-    group.add_argument("--input_dir", help="Путь к папке с DSC файлами")
+    group.add_argument("--input_dir", help="Путь к директории с DSC файлами")
     parser.add_argument(
         "--output_dir",
         default="./work-dir",
-        help="Папка для сохранения выходных файлов",
+        help="Директория для сохранения выходных файлов",
     )
-    parser.add_argument("--M", type=int, help="Папка для сохранения выходных файлов")
-    parser.add_argument("--ef", type=int, help="Папка для сохранения выходных файлов")
+    parser.add_argument("--M", type=int, help="Параметр M")
+    parser.add_argument("--ef", type=int, help="Параметр ef")
     parser.add_argument(
-        "--thr_num", type=int, help="Папка для сохранения выходных файлов"
+        "--thr_num", type=int, help="Количество потоков для построения индекса"
     )
     # parser.add_argument("--analize_dir", help="Анализ папки с логами")
-    parser.add_argument(
-        "--bf", action="store_true", help="Включение построения индекса по брутфорсингу"
-    )
+    # parser.add_argument(
+    #     "--bf", action="store_true", help="Включение построения индекса по брутфорсингу"
+    # )
 
     args = parser.parse_args()
 
@@ -131,7 +131,6 @@ def main():
             M=M,
             ef_construction=ef,
             threads_num=thr_num,
-            brutforce=args.bf,
         )
     elif args.input_dir:
         make_indexes(
@@ -140,7 +139,6 @@ def main():
             M=M,
             ef_construction=ef,
             threads_num=thr_num,
-            brutforce=args.bf,
         )
 
 

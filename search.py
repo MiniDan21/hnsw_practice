@@ -1,69 +1,82 @@
+import os
 import time
 import argparse
 from pathlib import Path
 
 import hnswlib
 
-from utils import load_dsc_file, build_index
+from utils import load_dsc_file, build_index, save_index
 
-dsc_bf_results = {}
 
-# def get_BF_result(data, bf_path, query, k=2):
-#     global dsc_bf_results
+def build_bf_index(data, query: Path, target_dir: Path):
+    target_filepath = target_dir / 'BF.idx'
+    try:
+        # Пробуем подгрузить
+        bf_index, _ = build_index(data, method=hnswlib.BFIndex, index_path=target_filepath)
+    except FileNotFoundError:
+        print(f"Делается BF индекс для {query.stem}")
+        bf_index, _ = build_index(data, method=hnswlib.BFIndex)
+        save_index(bf_index, str(target_filepath))
+    return bf_index, target_filepath
 
-#     method = hnswlib.BFIndex
-#     bf_index, _ = build_index(data, index_path=str(bf_path), method=method)
-#     labels_bf, distances_bf = bf_index.knn_query(data, k)
-#     dsc_bf_results[query] = labels_bf
-
-#     return labels_bf
-
+def bf_search(bf_index, data, q: Path, k=2):
+    print(f"Вычисляется по BF индекс для {q.stem}")
+    labels_bf, distances_bf = bf_index.knn_query(data, k)
+    
+    return labels_bf, distances_bf
 
 def search(
-    index: list[Path], queries: list[Path], output_dir: Path, ef=None, thr_num=None, k=2
+    index: list[Path], queries: list[Path], output_dir: Path, ef, thr_num, k=2
 ):
-    dsc_bf_results = {}
-
-    for q in queries:
-        data = load_dsc_file(q)
-        print(f"Делается BF индекс для {q.stem}")
-        bf_index, _ = build_index(data, method=hnswlib.BFIndex)
-        print(f"Вычисляется по BF индекс для {q.stem}")
-        labels_bf, distances_bf = bf_index.knn_query(data, k)
-        dsc_bf_results[q] = labels_bf
-
-    for idx in index:
-        print(f"Используется индекс {idx.stem}")
-        target_output_dir = output_dir / idx.stem
-        target_output_dir.mkdir(parents=True, exist_ok=True)
-        if "0_BF" in str(idx):
-            continue
-        for query in queries:
+    # Идем по списку dsc файлов
+    for query in queries:
+        # Подгружаем данные
+        data = load_dsc_file(query)
+        # Создаем директорию для сохранения BF-индекса и результатов поисков по индексам
+        target_dir = output_dir / query.stem
+        target_dir.mkdir(parents=True, exist_ok=True)
+        # Подгружаем BF-индекс либо строим
+        bf_index, bf_path = build_bf_index(data, query, target_dir)
+        # Определяем лэйблы
+        dsc_bf_results, _ = bf_search(bf_index, data, query, k)
+        # Идем по списку индексов
+        for idx in index:
+            if "0_BF" in str(idx):
+                continue
+            print(f"Используется индекс {idx.stem}")
+            target_idx_dir = target_dir / idx.stem
+            target_idx_dir.mkdir(parents=True, exist_ok=True)
             print(f"Поиск в файле {query.stem}")
-            data = load_dsc_file(query)
-            thr_num, ef_c, M = list(map(int, str(idx.stem).split("_")[-1:-4:-1]))
-            hnsw_index, _ = build_index(
-                data, M=M, ef_construction=ef_c, threads_num=thr_num
-            )
+
+            # # Парсим название сгенерированного индекса по следующему формату '<название>_M_ef_thr-num'
+            # thr_num, ef_c, M = list(map(int, idx.stem.split("_")[-1:-4:-1]))
+            # hnsw_index, _ = build_index(
+            #     data, M=M, ef_construction=ef_c, threads_num=thr_num
+            # )
+
+            # Подгружаем сгенерированный ранее индекс
+            hnsw_index, _ = build_index(data, index_path=idx)
+            # Устанавливаем параметры поиска
             hnsw_index.set_ef(ef)
+            hnsw_index.set_num_threads(thr_num)
 
             start_time = time.time()
             labels_hnsw, distances_hnsw = hnsw_index.knn_query(data, k)
-            build_time = time.time() - start_time
+            search_time = time.time() - start_time
 
             correct = 0
             for i in range(data.shape[0]):
                 for label in labels_hnsw[i]:
-                    for correct_label in dsc_bf_results[query][i]:
+                    for correct_label in dsc_bf_results[i]:
                         if label == correct_label:
                             correct += 1
                             break
 
             recall = float(correct) / (k * data.shape[0])
             print("recall is :", recall)
-            logpath = target_output_dir / query.stem
+            logpath = target_idx_dir / (idx.stem + '.log')
             with open(logpath, "w") as log_file:
-                log_file.write(f"{recall:.6f} {build_time:.6f}\n")
+                log_file.write(f"{recall:.6f} {search_time:.6f}\n")
 
             print(f"Сохранён лог: {logpath}\n")
 
@@ -73,10 +86,10 @@ def main():
     parser.add_argument(
         "--output_dir",
         default="./search_results",
-        help="Папка для сохранения лог файлов",
+        help="Директория для сохранения лог файлов",
     )
-    parser.add_argument("--ef", type=int, help="Значение ef для поиска")
-    parser.add_argument("--thr_num", type=int, help="Количество потоков для поиска")
+    parser.add_argument("--ef", default=100, type=int, help="Значение ef для поиска")
+    parser.add_argument("--thr_num", default=os.cpu_count(), type=int, help="Количество потоков для поиска")
 
     idx_group = parser.add_mutually_exclusive_group(required=True)
     idx_group.add_argument("--idx_file", help="Путь к IDX файлу с индексом")
@@ -93,7 +106,7 @@ def main():
 
     if (args.ef or args.thr_num) and not (args.ef and args.thr_num):
         parser.error(
-            "Если указан хотя бы один из параметров --ef или --thr_num, то необходимо указать оба."
+            "Если указан хотя бы один из параметров --ef или --thr_num, то необходимо указать оба"
         )
 
     ef = args.ef
