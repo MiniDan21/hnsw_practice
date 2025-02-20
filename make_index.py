@@ -1,5 +1,6 @@
 import os
 import argparse
+from pathlib import Path
 
 import hnswlib
 
@@ -112,6 +113,9 @@ def main():
     # )
 
     args = parser.parse_args()
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(exist_ok=True)
 
     if (args.M or args.ef or args.thr_num) and not (
         args.M and args.ef and args.thr_num
