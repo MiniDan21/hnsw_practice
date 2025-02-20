@@ -14,6 +14,7 @@ def make_index(
     ef_construction=None,
     threads_num=None,
     brutforce=False,
+    append=False,
 ):
     data = load_dsc_file(input_file)
     base_name = os.path.splitext(os.path.basename(input_file))[0]
@@ -58,9 +59,13 @@ def make_index(
                 log_filepath = os.path.join(output_dir, log_filename)
 
                 save_index(index, idx_filepath)
-
-                with open(log_filepath, "w") as log_file:
-                    log_file.write(f"{build_time:.6f}\n")
+                print(append)
+                if append:
+                    with open(log_filepath, "a") as log_file:
+                        log_file.write(f"{build_time:.6f}\n")
+                else:
+                    with open(log_filepath, "w") as log_file:
+                        log_file.write(f"{build_time:.6f}\n")
 
                 print(f"Сохранён лог: {log_filepath}\n")
 
@@ -72,6 +77,7 @@ def make_indexes(
     ef_construction=None,
     threads_num=None,
     brutforce=False,
+    append=False,
 ):
     for filename in os.listdir(input_dir):
         if filename.lower().endswith(".dsc"):
@@ -87,6 +93,7 @@ def make_indexes(
                     ef_construction=ef_construction,
                     threads_num=threads_num,
                     brutforce=brutforce,
+                    append=append,
                 )
 
 
@@ -106,6 +113,9 @@ def main():
     parser.add_argument("--ef", type=int, help="Параметр ef")
     parser.add_argument(
         "--thr_num", type=int, help="Количество потоков для построения индекса"
+    )
+    parser.add_argument(
+        "-a", action="store_true", help="Добавить в логи результат, оставляя предыдущий"
     )
     # parser.add_argument("--analize_dir", help="Анализ папки с логами")
     # parser.add_argument(
@@ -135,6 +145,7 @@ def main():
             M=M,
             ef_construction=ef,
             threads_num=thr_num,
+            append=args.a,
         )
     elif args.input_dir:
         make_indexes(
@@ -143,6 +154,7 @@ def main():
             M=M,
             ef_construction=ef,
             threads_num=thr_num,
+            append=args.a,
         )
 
 
