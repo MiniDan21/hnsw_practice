@@ -48,16 +48,14 @@ def build_index(
         else:
             raise FileNotFoundError(index_path)
 
-    max_elements = 2 * num_elements
-
     if method == hnswlib.BFIndex:
-        index.init_index(max_elements=max_elements)
+        index.init_index(max_elements=num_elements)
     else:
         index.init_index(
-            max_elements=max_elements,
+            max_elements=num_elements,
             ef_construction=ef_construction,
             M=M,
-            allow_replace_deleted=True,
+            allow_replace_deleted=False,
         )
 
     index.set_num_threads(threads_num)

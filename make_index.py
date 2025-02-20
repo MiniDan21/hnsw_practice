@@ -59,13 +59,14 @@ def make_index(
                 log_filepath = os.path.join(output_dir, log_filename)
 
                 save_index(index, idx_filepath)
-                print(append)
+
+                log_info = f"{input_file},{M},{ef},{threads},{build_time:.6f}\n"
                 if append:
                     with open(log_filepath, "a") as log_file:
-                        log_file.write(f"{build_time:.6f}\n")
+                        log_file.write(log_info)
                 else:
                     with open(log_filepath, "w") as log_file:
-                        log_file.write(f"{build_time:.6f}\n")
+                        log_file.write(log_info)
 
                 print(f"Сохранён лог: {log_filepath}\n")
 

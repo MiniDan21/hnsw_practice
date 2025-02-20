@@ -59,7 +59,7 @@ def search(
             print(f"Поиск в файле {query.stem}")
 
             # # Парсим название сгенерированного индекса по следующему формату '<название>_M_ef_thr-num'
-            # thr_num, ef_c, M = list(map(int, idx.stem.split("_")[-1:-4:-1]))
+            _, ef_c, M = list(map(int, idx.stem.split("_")[-1:-4:-1]))
             # hnsw_index, _ = build_index(
             #     data, M=M, ef_construction=ef_c, threads_num=thr_num
             # )
@@ -85,12 +85,13 @@ def search(
             recall = float(correct) / (k * data.shape[0])
             print("recall is :", recall)
             logpath = target_idx_dir / (idx.stem + ".log")
+            log_info = f"{str(query)},{str(idx)},{M},{ef_c},{ef},{thr_num},{recall:.6f},{search_time:.6f}\n"
             if append:
                 with open(logpath, "a") as log_file:
-                    log_file.write(f"{recall:.6f} {search_time:.6f}\n")
+                    log_file.write(log_info)
             else:
                 with open(logpath, "w") as log_file:
-                    log_file.write(f"{recall:.6f} {search_time:.6f}\n")
+                    log_file.write(log_info)
 
             print(f"Сохранён лог: {logpath}\n")
 
