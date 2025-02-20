@@ -9,24 +9,34 @@ from utils import load_dsc_file, build_index, save_index
 
 
 def build_bf_index(data, query: Path, target_dir: Path):
-    target_filepath = target_dir / 'BF.idx'
+    target_filepath = target_dir / "BF.idx"
     try:
         # Пробуем подгрузить
-        bf_index, _ = build_index(data, method=hnswlib.BFIndex, index_path=target_filepath)
+        bf_index, _ = build_index(
+            data, method=hnswlib.BFIndex, index_path=target_filepath
+        )
     except FileNotFoundError:
         print(f"Делается BF индекс для {query.stem}")
         bf_index, _ = build_index(data, method=hnswlib.BFIndex)
         save_index(bf_index, str(target_filepath))
     return bf_index, target_filepath
 
+
 def bf_search(bf_index, data, q: Path, k=2):
     print(f"Вычисляется по BF индекс для {q.stem}")
     labels_bf, distances_bf = bf_index.knn_query(data, k)
-    
+
     return labels_bf, distances_bf
 
+
 def search(
-    index: list[Path], queries: list[Path], output_dir: Path, ef, thr_num, k=2
+    index: list[Path],
+    queries: list[Path],
+    output_dir: Path,
+    ef,
+    thr_num,
+    append=False,
+    k=2,
 ):
     # Идем по списку dsc файлов
     for query in queries:
@@ -74,9 +84,13 @@ def search(
 
             recall = float(correct) / (k * data.shape[0])
             print("recall is :", recall)
-            logpath = target_idx_dir / (idx.stem + '.log')
-            with open(logpath, "w") as log_file:
-                log_file.write(f"{recall:.6f} {search_time:.6f}\n")
+            logpath = target_idx_dir / (idx.stem + ".log")
+            if append:
+                with open(logpath, "a") as log_file:
+                    log_file.write(f"{recall:.6f} {search_time:.6f}\n")
+            else:
+                with open(logpath, "w") as log_file:
+                    log_file.write(f"{recall:.6f} {search_time:.6f}\n")
 
             print(f"Сохранён лог: {logpath}\n")
 
@@ -89,7 +103,12 @@ def main():
         help="Директория для сохранения лог файлов",
     )
     parser.add_argument("--ef", default=100, type=int, help="Значение ef для поиска")
-    parser.add_argument("--thr_num", default=os.cpu_count(), type=int, help="Количество потоков для поиска")
+    parser.add_argument(
+        "--thr_num",
+        default=os.cpu_count(),
+        type=int,
+        help="Количество потоков для поиска",
+    )
 
     idx_group = parser.add_mutually_exclusive_group(required=True)
     idx_group.add_argument("--idx_file", help="Путь к IDX файлу с индексом")
@@ -99,6 +118,9 @@ def main():
     dsc_group.add_argument("--dsc_file", help="Путь к DSC файлу с запросами")
     dsc_group.add_argument("--dsc_dir", help="Путь к директории с DSC файлами")
 
+    parser.add_argument(
+        "-a", action="store_true", help="Добавить в логи результат, оставляя предыдущий"
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -135,7 +157,7 @@ def main():
         )
     )
 
-    search(idx, dsc, Path(args.output_dir), ef, thr_num)
+    search(idx, dsc, Path(args.output_dir), ef, thr_num, append=args.a)
 
 
 if __name__ == "__main__":

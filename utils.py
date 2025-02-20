@@ -32,7 +32,7 @@ def build_index(
     ef_construction=None,
     threads_num=os.cpu_count(),  # // 2
     method=hnswlib.Index,
-    index_path: Optional[Path] =None,
+    index_path: Optional[Path] = None,
 ):
     build_time = 0.0
     num_elements, dim = data.shape
