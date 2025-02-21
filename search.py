@@ -5,7 +5,13 @@ from pathlib import Path
 
 import hnswlib
 
-from utils import load_dsc_file, build_index, save_index
+from utils import (
+    load_dsc_file,
+    build_index,
+    save_index,
+    save_bf_search_result,
+    load_bf_search_result,
+)
 
 
 def build_bf_index(data, query: Path, target_dir: Path):
@@ -22,11 +28,17 @@ def build_bf_index(data, query: Path, target_dir: Path):
     return bf_index, target_filepath
 
 
-def bf_search(bf_index, data, q: Path, k=2):
-    print(f"Вычисляется по BF индекс для {q.stem}")
-    labels_bf, distances_bf = bf_index.knn_query(data, k)
+def bf_search(bf_index, bf_path, data, q: Path, k=2):
+    bf_search_results: Path = bf_path.parent / "BF.npy"
+    if bf_search_results.exists():
+        print(f"Выгружаются BF результаты из {bf_search_results}")
+        labels_bf = load_bf_search_result(bf_search_results)
+    else:
+        print(f"Вычисляется по BF индекс для {q.stem}")
+        labels_bf, _ = bf_index.knn_query(data, k)
+        save_bf_search_result(labels_bf, str(bf_search_results))
 
-    return labels_bf, distances_bf
+    return labels_bf
 
 
 def search(
@@ -48,7 +60,7 @@ def search(
         # Подгружаем BF-индекс либо строим
         bf_index, bf_path = build_bf_index(data, query, target_dir)
         # Определяем лэйблы
-        dsc_bf_results, _ = bf_search(bf_index, data, query, k)
+        dsc_bf_results = bf_search(bf_index, bf_path, data, query, k)
         # Идем по списку индексов
         for idx in index:
             if "0_BF" in str(idx):

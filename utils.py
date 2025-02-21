@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import hnswlib
 import rasterio
 
@@ -24,6 +25,22 @@ def load_dsc_file(filepath):
     except Exception as e:
         raise ValueError(f"Ошибка при загрузке файла {filepath}: {e}")
     return data.squeeze()
+
+
+def save_bf_search_result(data: np.array, filepath: str):
+    try:
+        np.save(filepath, data)
+    except PermissionError as e:
+        raise ValueError(f"Ошибка при сохранении файла {filepath}: {e}")
+
+
+def load_bf_search_result(filepath: str):
+    try:
+        data = np.load(filepath)
+    except Exception as e:
+        raise ValueError(f"Ошибка при загрузке файла {filepath}: {e}")
+
+    return data
 
 
 def build_index(
