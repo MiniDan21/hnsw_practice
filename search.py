@@ -7,30 +7,23 @@ import hnswlib
 
 from utils import (
     load_dsc_file,
-    build_index,
-    save_index,
+    load_index,
     save_bf_search_result,
     load_bf_search_result,
 )
 
 
-def build_bf_index(data, query: Path, target_dir: Path):
-    target_filepath = target_dir / "BF.idx"
-    try:
-        # Пробуем подгрузить
-        bf_index, _ = build_index(
-            data, method=hnswlib.BFIndex, index_path=target_filepath
-        )
-    except FileNotFoundError:
-        print(f"Делается BF индекс для {query.stem}")
-        bf_index, _ = build_index(data, method=hnswlib.BFIndex)
-        save_index(bf_index, str(target_filepath))
+def build_bf_index(dim, idx_dir: Path):
+    target_filepath = idx_dir / "BF.idx"
+    bf_index = hnswlib.BFIndex(space="l2", dim=dim)
+    load_index(bf_index, str(target_filepath))
+
     return bf_index, target_filepath
 
 
-def bf_search(bf_index, bf_path, data, q: Path, k=2):
-    bf_search_results: Path = bf_path.parent / "BF.npy"
-    if bf_search_results.exists():
+def bf_search(bf_index, bf_path, data, q: Path, k=2, rewrite=False):
+    bf_search_results: Path = bf_path / "BF.npy"
+    if bf_search_results.exists() and not rewrite:
         print(f"Выгружаются BF результаты из {bf_search_results}")
         labels_bf = load_bf_search_result(bf_search_results)
     else:
@@ -48,36 +41,34 @@ def search(
     ef,
     thr_num,
     append=False,
+    rewrite=False,
     k=2,
 ):
     # Идем по списку dsc файлов
     for query in queries:
-        # Подгружаем данные
         data = load_dsc_file(query)
-        # Создаем директорию для сохранения BF-индекса и результатов поисков по индексам
+        num_elements, dim = data.shape
         target_dir = output_dir / query.stem
         target_dir.mkdir(parents=True, exist_ok=True)
-        # Подгружаем BF-индекс либо строим
-        bf_index, bf_path = build_bf_index(data, query, target_dir)
-        # Определяем лэйблы
-        dsc_bf_results = bf_search(bf_index, bf_path, data, query, k)
         # Идем по списку индексов
         for idx in index:
-            if "0_BF" in str(idx):
+            if "BF" in str(idx):
                 continue
-            print(f"Используется индекс {idx.stem}")
+            # Подгружаем BF-индекс
+            bf_index, bf_path = build_bf_index(dim, Path(idx.parent))
+            dsc_bf_results = bf_search(bf_index, target_dir, data, query, k, rewrite)
+
             target_idx_dir = target_dir / idx.stem
             target_idx_dir.mkdir(parents=True, exist_ok=True)
             print(f"Поиск в файле {query.stem}")
 
             # # Парсим название сгенерированного индекса по следующему формату '<название>_M_ef_thr-num'
             _, ef_c, M = list(map(int, idx.stem.split("_")[-1:-4:-1]))
-            # hnsw_index, _ = build_index(
-            #     data, M=M, ef_construction=ef_c, threads_num=thr_num
-            # )
 
             # Подгружаем сгенерированный ранее индекс
-            hnsw_index, _ = build_index(data, index_path=idx)
+            hnsw_index = hnswlib.Index(space="l2", dim=dim)
+            load_index(hnsw_index, str(idx))
+
             # Устанавливаем параметры поиска
             hnsw_index.set_ef(ef)
             hnsw_index.set_num_threads(thr_num)
@@ -87,14 +78,14 @@ def search(
             search_time = time.time() - start_time
 
             correct = 0
-            for i in range(data.shape[0]):
+            for i in range(num_elements):
                 for label in labels_hnsw[i]:
                     for correct_label in dsc_bf_results[i]:
                         if label == correct_label:
                             correct += 1
                             break
 
-            recall = float(correct) / (k * data.shape[0])
+            recall = float(correct) / (k * num_elements)
             print("recall is :", recall)
             logpath = target_idx_dir / (idx.stem + ".log")
             log_info = f"{str(query)},{str(idx)},{M},{ef_c},{ef},{thr_num},{recall:.6f},{search_time:.6f}\n"
@@ -134,6 +125,9 @@ def main():
     parser.add_argument(
         "-a", action="store_true", help="Добавить в логи результат, оставляя предыдущий"
     )
+    parser.add_argument(
+        "--rewrite", action="store_true", help="Выполнить BF-поиск заново"
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -170,7 +164,15 @@ def main():
         )
     )
 
-    search(idx, dsc, Path(args.output_dir), ef, thr_num, append=args.a)
+    search(
+        idx,
+        dsc,
+        Path(args.output_dir),
+        ef,
+        thr_num,
+        append=args.a,
+        rewrite=args.rewrite,
+    )
 
 
 if __name__ == "__main__":

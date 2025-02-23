@@ -1,10 +1,11 @@
 import os
+import time
 import argparse
 from pathlib import Path
 
 import hnswlib
 
-from utils import load_dsc_file, build_index, save_index
+from utils import load_dsc_file, save_index
 
 
 def make_index(
@@ -19,20 +20,8 @@ def make_index(
     data = load_dsc_file(input_file)
     base_name = os.path.splitext(os.path.basename(input_file))[0]
 
-    # if brutforce:
-    #     print(f"Строим BF-индекс")
-    #     index, build_time = build_index(data, method=hnswlib.BFIndex)
-    #     target_bf_output = os.path.join(
-    #         output_dir, f"{base_name.split('-')[0]}_0_BF.idx"
-    #     )
-    #     target_log_output = os.path.join(
-    #         output_dir, f"{base_name.split('-')[0]}_0_BF.log"
-    #     )
-    #     save_index(index, target_bf_output)
-    #     with open(target_log_output, "w") as log_file:
-    #         log_file.write(f"{build_time:.6f}\n")
-
-    #     print(f"Сохранён лог: {target_log_output}\n")
+    output_dir = os.path.join(output_dir, input_file.split("/")[-1])
+    os.makedirs(output_dir, exist_ok=True)
 
     M_values = [2**i for i in range(2, 6)]
     ef_construction_values = list(range(50, 301, 50))
@@ -45,20 +34,35 @@ def make_index(
     if threads_num is not None:
         threads_values = [threads_num]
 
+    num_elements, dim = data.shape
     for M in M_values:
         for ef in ef_construction_values:
             for threads in threads_values:
                 print(f"Строим индекс: M={M}, ef_construction={ef}, threads={threads}")
-                index, build_time = build_index(
-                    data, M=M, ef_construction=ef, threads_num=threads
+                hnsw_index = hnswlib.Index(space="l2", dim=dim)
+                hnsw_index.init_index(
+                    max_elements=num_elements, ef_construction=ef, M=M
                 )
+                hnsw_index.set_num_threads(threads)
+
+                start_time = time.time()
+                hnsw_index.add_items(data)
+                build_time = time.time() - start_time
 
                 idx_filename = f"{base_name.split('-')[0]}_{M}_{ef}_{threads}.idx"
+                bf_idx_filename = f"BF.idx"
                 log_filename = f"{base_name.split('-')[0]}_{M}_{ef}_{threads}.log"
                 idx_filepath = os.path.join(output_dir, idx_filename)
+                bf_idx_filepath = os.path.join(output_dir, bf_idx_filename)
                 log_filepath = os.path.join(output_dir, log_filename)
 
-                save_index(index, idx_filepath)
+                hnsw_index.save_index(idx_filepath)
+
+                if not os.path.exists(bf_idx_filepath):
+                    bf_index = hnswlib.BFIndex(space="l2", dim=dim)
+                    bf_index.init_index(max_elements=num_elements)
+                    bf_index.add_items(data)
+                    bf_index.save_index(bf_idx_filepath)
 
                 log_info = f"{input_file},{M},{ef},{threads},{build_time:.6f}\n"
                 if append:
@@ -83,13 +87,11 @@ def make_indexes(
     for filename in os.listdir(input_dir):
         if filename.lower().endswith(".dsc"):
             file_path = os.path.join(input_dir, filename)
-            target_output_dir = os.path.join(output_dir, filename)
-            os.makedirs(target_output_dir, exist_ok=True)
 
             if os.path.isfile(file_path):
                 make_index(
                     file_path,
-                    target_output_dir,
+                    output_dir,
                     M=M,
                     ef_construction=ef_construction,
                     threads_num=threads_num,
