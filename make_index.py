@@ -46,6 +46,7 @@ def make_index(
                 hnsw_index.set_num_threads(threads)
 
                 start_time = time.time()
+                # print(input_file)
                 hnsw_index.add_items(data)
                 build_time = time.time() - start_time
 
@@ -113,7 +114,7 @@ def main():
         help="Директория для сохранения выходных файлов",
     )
     parser.add_argument("--M", type=int, help="Параметр M")
-    parser.add_argument("--ef", type=int, help="Параметр ef")
+    parser.add_argument("--ef_construction", type=int, help="Параметр ef_construction")
     parser.add_argument(
         "--thr_num", type=int, help="Количество потоков для построения индекса"
     )
@@ -130,15 +131,15 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    if (args.M or args.ef or args.thr_num) and not (
-        args.M and args.ef and args.thr_num
+    if (args.M or args.ef_construction or args.thr_num) and not (
+        args.M and args.ef_construction and args.thr_num
     ):
         parser.error(
-            "Если указан хотя бы один из параметров --M, --ef или --thr_num, то необходимо указать все три."
+            "Если указан хотя бы один из параметров --M, --ef_construction или --thr_num, то необходимо указать все три."
         )
 
     M = args.M
-    ef = args.ef
+    ef = args.ef_construction
     thr_num = args.thr_num
 
     if args.input_file:

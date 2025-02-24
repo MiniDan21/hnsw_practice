@@ -12,6 +12,9 @@ output_prefix="${1:-total}"
 work_dir="${2:-work-dir}"
 search_dir="${3:-search_results}"
 
+chmod +r -R ${work_dir}/**/*.log
+chmod +r -R ${search_dir}*/**/*.log
+
 echo "Используем рабочую директорию: $work_dir"
 echo "Используем директорию поиска: $search_dir"
 
@@ -19,5 +22,4 @@ echo "input.dsc,M,ef_constr,num_threads,time" > "${output_prefix}_index.csv"
 cat ${work_dir}/**/*.log >> "${output_prefix}_index.csv"
 
 echo "input.dsc,test.dsc,M,ef_constr,ef,num_threads,recall,time" > "${output_prefix}_search.csv"
-# почему то не работает, но вручную работает
-cat ${search_dir}*/**/*.log >> "${output_prefix}_search.csv"
+cat ${search_dir}/**/**/*.log >> "${output_prefix}_search.csv"
