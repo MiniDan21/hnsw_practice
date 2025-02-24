@@ -88,7 +88,7 @@ def search(
             recall = float(correct) / (k * num_elements)
             print("recall is :", recall)
             logpath = target_idx_dir / (
-                idx.stem.split("_")[0] + "_{ef}_{thr_num}" + ".log"
+                idx.stem.split("_")[0] + f"_{ef}_{thr_num}" + ".log"
             )
             log_info = f"{str(query)},{str(idx)},{M},{ef_c},{ef},{thr_num},{recall:.6f},{search_time:.6f}\n"
             if append:
