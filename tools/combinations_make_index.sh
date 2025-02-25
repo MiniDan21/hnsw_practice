@@ -43,17 +43,20 @@ ef_construction_values="100 200 300"    # Пример диапазона для
 thr_num_values="1 2 3"                  # Пример диапазона для thr_num
 
 # Запуск цикла по всем комбинациям
-for M in $(seq 2 25 52); do
-  for ef in $(seq 10 100 310); do
-    for thr in $(seq 4 4 $(nproc --all)); do
+for M in $(seq 2 10 32); do
+  for ef in $(seq 10 100 210); do
+    nproc_all=$(nproc --all)
+    start=$(echo "$nproc_all / 2" | bc)
+    step=$(echo "$nproc_all / 2" | bc)
+    for thr in $(seq "$start" "$step" "$nproc_all"); do
       echo "Запуск: M=$M, ef_construction=$ef, thr_num=$thr"
       
       # Формирование команды с обязательным аргументом --output_dir
       # Выбор: если задан input_file, то используем его, иначе input_dir
       if [ -n "$input_file" ]; then
-        poetry run python3 make_index.py --M "$M" --ef_construction "$ef" --thr_num "$thr" --input_file "$input_file" --output_dir "$output_dir" -a
+        poetry run python3 make_index.py --M "$M" --ef_construction "$ef" --thr_num "$thr" --input_file "$input_file" --output_dir "$output_dir"
       else
-        poetry run python3 make_index.py --M "$M" --ef_construction "$ef" --thr_num "$thr" --input_dir "$input_dir" --output_dir "$output_dir" -a
+        poetry run python3 make_index.py --M "$M" --ef_construction "$ef" --thr_num "$thr" --input_dir "$input_dir" --output_dir "$output_dir"
       fi
     done
   done
